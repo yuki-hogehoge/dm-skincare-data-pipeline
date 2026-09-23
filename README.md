@@ -4,6 +4,20 @@ A pipeline for automatically collecting and processing product data (price, rati
 from dm.de, a major German drugstore chain. Built for the Serum & Kur (serum/treatment) category,
 but designed to be reusable for other categories as well.
 
+If you'd prefer to read about this project in Japanese, see the accompanying Zenn article:
+[dm.deの製品データ収集パイプラインを作った話](https://zenn.dev/yuki_hogehoge/articles/dm_data_pipeline)
+
+## Disclaimer
+
+This is a personal, educational project built to practice web scraping, API reverse
+engineering, and data pipeline design. It is not affiliated with, endorsed by, or
+officially supported by dm-drogerie markt.
+
+The pipeline relies on dm.de's internal (undocumented) APIs, discovered through browser
+DevTools inspection. These endpoints may change or be restricted at any time without notice,
+which could break this pipeline. Use at your own risk, and always re-verify robots.txt and
+rate limits before running against the live site.
+
 ## Quick Start
 
 ```bash
@@ -20,8 +34,6 @@ Update `INPUT_PATH` / `OUTPUT_PATH` in each script to match your local environme
 
 - [`docs/data_pipeline.md`](./docs/data_pipeline.md) — API specification, steps for reuse, known issues and how they're handled (**start here when adapting this to a new category**)
 - [`docs/data_collection_process.md`](./docs/data_collection_process.md) — Build log documenting how the pipeline was developed (handling the SPA, discovering the internal APIs, dealing with rate limits)
-
-> Note: the two documents above are currently written in Japanese.
 
 ## Directory Structure
 
@@ -42,4 +54,5 @@ the same data), not the raw scraped data itself.
 
 ## Related Articles
 
-- [Zenn article ([dm.de 製品データ収集パイプライン](https://zenn.dev/yuki_hogehoge/articles/dm_data_pipeline))]
+- [初回のプロトタイプ分析](https://zenn.dev/yuki_hogehoge/articles/98cff955fbba69)
+- [スクレイピング試行錯誤の記録](https://zenn.dev/yuki_hogehoge/articles/dm_data_collection_process)
