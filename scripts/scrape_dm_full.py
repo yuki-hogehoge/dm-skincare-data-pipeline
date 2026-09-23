@@ -11,6 +11,10 @@ dm.de の2つの内部APIを組み合わせて、カテゴリ内の全商品デ�
     一覧APIのページ送りパラメータ名(PAGE_PARAM_NAME)は未確定です。
     DevToolsで2ページ目のURLを確認し、下の PAGE_PARAM_NAME を実際のパラメータ名に
     書き換えてから実行してください(現時点では "page" と仮定しています)。
+追記: 
+    currentPageというパラメータ名は、当初ブラウザのアドレスバーからの類推でしたが、
+    その後実際のXHRリクエスト(DevToolsの「Copy as cURL」)を直接確認し、
+    正しいパラメータ名であることが確定しました。
 """
 
 import time
@@ -89,7 +93,7 @@ def fetch_all_listing() -> list[dict]:
         returned_page = data.get("currentPage")
         if returned_page != page:
             print(f"  警告: 要求したpage={page} と レスポンスのcurrentPage={returned_page} が一致しません。"
-                  f" PAGE_PARAM_NAME が正しいか確認してください。")
+                  f" PAGE_PARAM_NAME が変更されていないか確認してください。")
 
         for p in data.get("products", []):
             rating = p.get("context", {}).get("rating", {}) or {}
