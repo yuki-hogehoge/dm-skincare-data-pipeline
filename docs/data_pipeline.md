@@ -13,10 +13,10 @@ focuses purely on "what was ultimately established" as a reference.
 
 ```mermaid
 flowchart TD
-    A["1. Listing API<br/>product-search.services.dmtech.com"] -->|list of artikelnummer| B["2. Detail API<br/>products.dm.de"]
-    B --> C["scrape_dm_full.py<br/>Raw data CSV (172 rows)"]
-    C --> D["process_features.py<br/>Numeric price + ingredient normalization"]
-    D --> E["merge_final.py<br/>Merge manual annotations"]
+    A["1. Call listing API<br/>product-search.services.dmtech.com"] -->|list of artikelnummer| B["2. Call detail API<br/>products.dm.de"]
+    B --> C["3. Write raw data CSV<br/>(scrape_dm_full.py)"]
+    C --> D["4. Convert price to numeric,<br/>normalize ingredients<br/>(process_features.py)"]
+    D --> E["5. Merge manual annotations<br/>(merge_final.py)"]
     E --> F["skincare_dataset_final.csv"]
 ```
 
