@@ -82,6 +82,14 @@ The fix:
 
 This resolved the 429 errors and allowed all 172 products to be collected reliably.
 
+### 6. Direct Confirmation of the Pagination Parameter
+
+The `currentPage` parameter name in step 4 above was originally inferred indirectly, from the
+browser's address bar rather than the actual network request. Later, the actual XHR request
+made by the site (captured via DevTools' "Copy as cURL") was inspected directly, confirming
+that `currentPage` is indeed the exact parameter name used by the API. No code changes were
+needed, since the pipeline was already using the correct name.
+
 ## Data Collected
 
 | Column | Source API | Coverage (of 172) |
@@ -100,9 +108,9 @@ This resolved the 429 errors and allowed all 172 products to be collected reliab
   a separate normalization step
 - Neither API provides anything equivalent to a `concern` (skin-concern) tag; whether the
   `categories` column (e.g. "Anti Aging") can serve as a substitute still needs verification
-- The listing API's `currentPage` parameter name was inferred from the browser URL rather than
-  the actual network request, so it should be re-verified if the API specification changes in
-  the future
+- ~~The listing API's `currentPage` parameter name was inferred from the browser URL rather
+  than the actual network request~~ — **resolved**: a later inspection of the actual XHR
+  request confirmed `currentPage` is indeed the correct parameter name
 
 ## Ethical Considerations
 
