@@ -1,0 +1,15 @@
+# 生データ・加工後データ(著作権・EUデータベース権への配慮のため非公開)
+01_raw_data/*.csv
+02_clean_data/*.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
