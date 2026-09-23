@@ -1,94 +1,108 @@
-# dm.de 製品データ収集パイプライン
+# dm.de Product Data Collection Pipeline (Specification)
 
-Serum & Kurカテゴリの分析のために構築した、dm.deの製品データ(価格・rating・成分)を
-自動取得するパイプラインの仕様書。**他の製品カテゴリに展開する際は、このドキュメントに
-沿って「変更が必要な箇所」だけを差し替えれば再利用できる**ように設計している。
+Specification for the pipeline that automatically collects dm.de product data
+(price, rating, ingredients), originally built for the Serum & Kur category.
+**Designed so that adapting it to a new product category only requires
+swapping out the parts flagged as "needs to change" in this document.**
 
-試行錯誤の詳しい経緯は [`data_collection_process.md`](./data_collection_process.md) を参照。
-このドキュメントは「結果として何が確立したか」のリファレンスに専念する。
+For the detailed story of how this was built through trial and error, see
+[`data_collection_process.md`](./data_collection_process.md). This document
+focuses purely on "what was ultimately established" as a reference.
 
-## 全体構成
+## Overview
 
 ```mermaid
 flowchart TD
-    A["1. 一覧API<br/>product-search.services.dmtech.com"] -->|artikelnummer 一覧| B["2. 詳細API<br/>products.dm.de"]
-    B --> C["scrape_dm_full.py<br/>172件 生データCSV"]
-    C --> D["process_features.py<br/>価格数値化・成分正規化"]
-    D --> E["merge_final.py<br/>手動アノテーション結合"]
+    A["1. Listing API<br/>product-search.services.dmtech.com"] -->|list of artikelnummer| B["2. Detail API<br/>products.dm.de"]
+    B --> C["scrape_dm_full.py<br/>Raw data CSV (172 rows)"]
+    C --> D["process_features.py<br/>Numeric price + ingredient normalization"]
+    D --> E["merge_final.py<br/>Merge manual annotations"]
     E --> F["skincare_dataset_final.csv"]
 ```
 
-| ステップ | スクリプト | 役割 |
+| Step | Script | Role |
 |---|---|---|
-| 1〜3 | `scrape_dm_full.py` | 一覧API→詳細APIの順に叩き、生データCSVを作る |
-| 4 | `process_features.py` | 価格の数値化、成分の正規化・配合順位付け |
-| 5 | `merge_final.py` | 手動でつけたconcern等のアノテーションを結合(該当分のみ) |
+| 1-3 | `scrape_dm_full.py` | Calls the listing API then the detail API to build the raw data CSV |
+| 4 | `process_features.py` | Converts price to numeric, normalizes ingredients and ranks them |
+| 5 | `merge_final.py` | Merges manually annotated data such as skin-concern tags (for the subset that has it) |
 
-## API仕様
+## API Specification
 
-### 1. 一覧API(カテゴリ内の製品ID・価格・rating取得)
+### 1. Listing API (product IDs, price, and rating within a category)
 
 ```
 GET https://product-search.services.dmtech.com/de/search/static
-    ?allCategories.id={カテゴリID}
+    ?allCategories.id={category ID}
     &pageSize=30
-    &currentPage={0始まりのページ番号}
+    &currentPage={page number, starting at 0}
     &searchType=editorial-search
     &sort=editorial_relevance
     &type=search-static
     &enablePharmacy=true
 ```
 
-- レスポンスの `totalPages` を見て、`currentPage` を 0 から `totalPages-1` までループする
-- レスポンスの `count` が対象カテゴリの総製品数
-- **2ページ目以降で `429 Too Many Requests` が発生しやすい**(リクエスト先が内部的に `/search/crawl` という別経路に切り替わる)。8秒以上の間隔と、429時の自動リトライを必ず入れること(`request_with_retry()` 参照)
+- Check `totalPages` in the response and loop `currentPage` from 0 to `totalPages - 1`
+- `count` in the response is the total number of products in the target category
+- **`429 Too Many Requests` tends to occur from page 2 onward** (the request internally gets
+  routed to a different path, `/search/crawl`). Always use an interval of at least 8 seconds
+  and implement automatic retry on 429 (see `request_with_retry()`)
 
-### 2. 詳細API(製品ごとの成分・肌タイプ取得)
+### 2. Detail API (per-product ingredients and skin type)
 
 ```
 GET https://products.dm.de/product/products/detail/DE/dan/{artikelnummer}
 ```
 
-- `descriptionGroups` という配列の中から、`header` が `"Inhaltsstoffe"` のブロックを探して成分テキストを取得する
-- 同様に `header` が `"Produktmerkmale"` のブロックから `Hauttyp` 等の属性を取得できる
-- カテゴリによっては `descriptionGroups` の中身の見出し名が異なる可能性がある(例: ヘアケアなら "Haartyp" など)。**新カテゴリに展開する際は、1商品分のレスポンスを必ず目視確認すること**
+- Find the block in the `descriptionGroups` array whose `header` is `"Inhaltsstoffe"` to get
+  the ingredients text
+- Similarly, the block whose `header` is `"Produktmerkmale"` contains attributes such as
+  `Hauttyp` (skin type)
+- The heading names inside `descriptionGroups` may differ by category (e.g. "Haartyp" for
+  hair care). **When adapting this to a new category, always manually inspect the response
+  for at least one product**
 
-## 新しいカテゴリに展開する際の手順
+## Steps for Adapting to a New Category
 
-1. dm.deで対象カテゴリのページを開き、DevToolsで一覧APIのURLから `allCategories.id` の値を控える
-2. `scrape_dm_full.py` の `LIST_PARAMS_BASE["allCategories.id"]` を書き換える
-3. 出力先の `OUTPUT_PATH` をカテゴリ名がわかるファイル名に変更する(例: `skincare_dataset_shampoo_raw.csv`)
-4. 実行し、1商品分のレスポンスで `descriptionGroups` の見出し名が Serum & Kur と同じか確認する。違う場合は `find_group()` に渡す見出し名を調整する
-5. `process_features.py` の `KEY_INGREDIENT_KEYWORDS` を、そのカテゴリで注目したい成分に差し替える(例: ヘアケアならシリコン系、UVケアならUVフィルター系など)
-6. 成分の区切り文字の表記ゆれ(`•`, `·`, 改行など)は、カテゴリが変わっても同様に起こりうるので、`ingredient_count` が極端に少ない行がないか毎回チェックする
+1. Open the target category's page on dm.de and note the `allCategories.id` value from the
+   listing API URL in DevTools
+2. Update `LIST_PARAMS_BASE["allCategories.id"]` in `scrape_dm_full.py`
+3. Change `OUTPUT_PATH` to a filename that identifies the category (e.g.
+   `skincare_dataset_shampoo_raw.csv`)
+4. Run it, and check whether the heading names in `descriptionGroups` match those used for
+   Serum & Kur for a single product's response. If they differ, adjust the heading names
+   passed to `find_group()`
+5. Replace `KEY_INGREDIENT_KEYWORDS` in `process_features.py` with the ingredients relevant
+   to that category (e.g. silicones for hair care, UV filters for sun care)
+6. Ingredient-list delimiter inconsistencies (`•`, `·`, line breaks, etc.) can occur in any
+   category, so always check for rows with an unexpectedly low `ingredient_count`
 
-## 既知のデータ品質の問題と対処
+## Known Data Quality Issues and How They're Handled
 
-| 問題 | 症状 | 対処 |
+| Issue | Symptom | Handling |
 |---|---|---|
-| 成分の区切り文字がブランドによって不統一 | `,` 以外に `•`(bullet)、`·`(middle dot)を使うブランドがある | `parse_ingredients()` で事前に正規化してから分割 |
-| 1つの成分欄に複数バリエーション商品が混在 | 改行区切りで複数の見出し(例: "〇〇-Kur:")が並ぶ | `ingredients_multi_variant_flag` で検知し、分析時は除外か注記で対応 |
-| 価格がドイツ語表記 | `"4,95 €"` のような文字列 | `clean_price()` でカンマ→ピリオド変換後にfloat化 |
-| 一覧APIのレート制限 | 2ページ目以降で429 | 8秒以上の間隔+自動リトライ(`request_with_retry()`) |
+| Ingredient list delimiters are inconsistent across brands | Some brands use `•` (bullet) or `·` (middle dot) instead of `,` | Normalize these to commas before splitting, in `parse_ingredients()` |
+| A single ingredients field contains multiple product variants | Multiple headings (e.g. "XX-Kur:") separated by line breaks | Detected via `ingredients_multi_variant_flag`; exclude or annotate during analysis |
+| Price is in German notation | A string like `"4,95 €"` | `clean_price()` converts comma to period, then casts to float |
+| Listing API rate limiting | 429 from page 2 onward | Interval of 8+ seconds plus automatic retry (`request_with_retry()`) |
 
-## 最終データのスキーマ(主要列)
+## Final Data Schema (Key Columns)
 
-| 列名 | 内容 | 取得元 |
+| Column | Content | Source |
 |---|---|---|
-| `artikelnummer` | 商品番号(dan) | 一覧API |
-| `brand`, `name` | ブランド名・商品名 | 一覧API |
-| `price_eur_clean` | 価格(数値、ユーロ) | 一覧API→加工 |
-| `rating_value`, `rating_count` | 評価・レビュー数 | 一覧API |
-| `categories` | dm.de側のカテゴリタグ | 一覧API |
-| `hauttyp` | 肌タイプ表記 | 詳細API |
-| `ingredients_raw` / `ingredients_list_str` | 成分(生テキスト/正規化後リスト) | 詳細API→加工 |
-| `ingredient_count` | 総成分数 | 加工 |
-| `{成分名}_present` / `_rank` / `_rank_norm` | 注目成分ごとの配合有無・順位・正規化順位 | 加工 |
-| `has_manual_annotation` 以降 | 手動アノテーション(concern等、該当分のみ) | 手動データ結合 |
+| `artikelnummer` | Product number (dan) | Listing API |
+| `brand`, `name` | Brand name and product name | Listing API |
+| `price_eur_clean` | Price (numeric, euros) | Listing API → processed |
+| `rating_value`, `rating_count` | Rating and review count | Listing API |
+| `categories` | dm.de's own category tags | Listing API |
+| `hauttyp` | Skin type label | Detail API |
+| `ingredients_raw` / `ingredients_list_str` | Ingredients (raw text / normalized list) | Detail API → processed |
+| `ingredient_count` | Total number of ingredients | Processed |
+| `{ingredient}_present` / `_rank` / `_rank_norm` | Presence, rank, and normalized rank for each ingredient of interest | Processed |
+| `has_manual_annotation` and following columns | Manual annotations (e.g. concern), only for the annotated subset | Merged from manual data |
 
-## 倫理的配慮のチェックリスト(新カテゴリでも毎回確認)
+## Ethical Considerations Checklist (recheck for every new category)
 
-- [ ] 対象ドメインのrobots.txtで、使用するエンドポイントが禁止されていないか確認した
-- [ ] リクエスト間隔を十分に空けている(一覧API: 8秒以上、詳細API: 2秒以上)
-- [ ] 429等のレート制限応答に対して、待機時間を延ばしながら再試行する実装になっている
-- [ ] 取得するのは公開されている製品ページの情報の範囲内である
+- [ ] Confirmed the target domain's robots.txt does not disallow the endpoints being used
+- [ ] Sufficient delay between requests (8+ seconds for the listing API, 2+ seconds for the detail API)
+- [ ] Rate-limit responses (429, etc.) are handled by retrying with an increasing wait time
+- [ ] Only information already shown on public product pages is being collected
