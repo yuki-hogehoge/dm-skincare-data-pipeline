@@ -1,43 +1,45 @@
-# dm.de 製品データ収集パイプライン
+# dm.de Product Data Collection Pipeline
 
-dm.de(ドイツの大手ドラッグストア)の製品データ(価格・rating・成分)を自動取得し、
-分析可能な形に加工するパイプライン。Serum & Kurカテゴリを対象に構築したが、
-他カテゴリにも展開できるように設計している。
+A pipeline for automatically collecting and processing product data (price, rating, ingredients)
+from dm.de, a major German drugstore chain. Built for the Serum & Kur (serum/treatment) category,
+but designed to be reusable for other categories as well.
 
-## クイックスタート
+## Quick Start
 
 ```bash
 pip install requests pandas
 ```
 
-1. `scripts/scrape_dm_full.py` を実行 → カテゴリ内の全製品データ(生データ)を取得
-2. `scripts/process_features.py` を実行 → 価格の数値化・成分の正規化
-3. (任意) `scripts/merge_final.py` を実行 → 手動アノテーション(concern等)を結合
+1. Run `scripts/scrape_dm_full.py` → fetches raw data for all products in the target category
+2. Run `scripts/process_features.py` → converts price to numeric, normalizes ingredient lists
+3. (Optional) Run `scripts/merge_final.py` → merges manually annotated data (e.g. skin concern tags)
 
-各スクリプトの `INPUT_PATH` / `OUTPUT_PATH` は環境に合わせて書き換えてください。
+Update `INPUT_PATH` / `OUTPUT_PATH` in each script to match your local environment.
 
-## ドキュメント
+## Documentation
 
-- [`docs/data_pipeline.md`](./docs/data_pipeline.md) — API仕様・再利用手順・既知の問題と対処法(**他カテゴリに展開する際はまずここを見る**)
-- [`docs/data_collection_process.md`](./docs/data_collection_process.md) — 構築過程の記録(SPA対応・API発見・レート制限対応の経緯)
+- [`docs/data_pipeline.md`](./docs/data_pipeline.md) — API specification, steps for reuse, known issues and how they're handled (**start here when adapting this to a new category**)
+- [`docs/data_collection_process.md`](./docs/data_collection_process.md) — Build log documenting how the pipeline was developed (handling the SPA, discovering the internal APIs, dealing with rate limits)
 
-## ディレクトリ構成
+> Note: the two documents above are currently written in Japanese.
+
+## Directory Structure
 
 ```
 .
-├── scripts/           # 収集・加工スクリプト
-├── docs/               # ドキュメント
-├── 01_raw_data/        # 生データ(gitignore対象、ローカルのみ)
-└── 02_clean_data/       # 加工後データ(gitignore対象、ローカルのみ)
+├── scripts/           # Collection & processing scripts
+├── docs/               # Documentation
+├── 01_raw_data/        # Raw data (gitignored, local only)
+└── 02_clean_data/       # Processed data (gitignored, local only)
 ```
 
-## データの扱いについて
+## A Note on Data Handling
 
-`01_raw_data/` と `02_clean_data/` 配下のCSVは `.gitignore` でリポジトリから除外している。
-製品説明文などの著作権・EUデータベース権に配慮し、生データそのものは公開せず、
-コード(誰でも同じ手順で再取得できる)のみを公開する方針としている。
+CSV files under `01_raw_data/` and `02_clean_data/` are excluded from the repository via
+`.gitignore`. Out of consideration for copyright and EU database rights around product
+descriptions, this repository publishes only the code (which anyone can use to re-collect
+the same data), not the raw scraped data itself.
 
-## 関連記事
+## Related Articles
 
-- [Zenn記事(初回): 元記事タイトルをここに]
-- [Zenn記事(第2弾): 成分分析編、公開後にリンクを追加]
+- [Zenn article ([dm.de 製品データ収集パイプライン](https://zenn.dev/yuki_hogehoge/articles/dm_data_pipeline))]
