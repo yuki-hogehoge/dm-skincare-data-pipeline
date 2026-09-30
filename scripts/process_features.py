@@ -11,7 +11,7 @@ skincare_dataset_full.csv (172件) に対して以下を行うスクリプト:
 
 import pandas as pd
 
-INPUT_PATH = "02_clean_data/skincare_dataset_full.csv"
+INPUT_PATH = "01_raw_data/skincare_dataset_full.csv"
 OUTPUT_PATH = "02_clean_data/skincare_dataset_full_processed.csv"
 
 # 注目したい成分と、マッチさせるキーワード(小文字で判定するので大文字小文字は気にしなくてOK)
