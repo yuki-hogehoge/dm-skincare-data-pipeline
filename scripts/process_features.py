@@ -38,13 +38,11 @@ def clean_price(price_str) -> float | None:
         return None
 
 
+import re
+
 def parse_ingredients(raw: str) -> list[str]:
     """
     カンマ区切りの生テキストを、成分名のリストに変換(順序=配合順位を維持)
-
-    dm.deはブランドによって成分の区切り文字が統一されておらず、
-    カンマ(,)以外に bullet(•)や middle dot(·)、改行区切りのケースがある。
-    ここではそれらを一旦カンマに統一してから分割する。
     """
     if pd.isna(raw) or not raw:
         return []
@@ -52,20 +50,21 @@ def parse_ingredients(raw: str) -> list[str]:
     cleaned = str(raw)
     for bullet_char in ["•", "·", "・"]:
         cleaned = cleaned.replace(bullet_char, ",")
-    # 改行区切りのケース(複数バリエーション商品が1欄にまとまっている等)にも対応
     cleaned = cleaned.replace("\n", ",")
 
-    parts = [p.strip(" .*") for p in cleaned.split(",")]
+    # "1,2-Hexanediol" のような「数字,数字-英単語」パターンのカンマを、
+    # 区切り文字として誤爆させないよう一時的に退避する
+    cleaned = re.sub(r'(\d)\s*,\s*(\d+\s*-)', r'\1@COMMA@\2', cleaned)
 
-    # 空文字、見出し行(コロンで終わる行)、脚注文言を除外
+    parts = [p.strip(" .*\"") for p in cleaned.split(",")]  # "\"" を追加して引用符も除去
+
     skip_prefixes = ("ingredients from", "from natural")
     parts = [
         p for p in parts
         if p and not p.endswith(":") and not p.lower().startswith(skip_prefixes)
     ]
+    parts = [p.replace("@COMMA@", ",") for p in parts]  # 退避したカンマを元に戻す
 
-    # 重複除去(順序は維持)。複数バリエーションが混在するケースで同じ成分が
-    # 何度も出てくるのを防ぐため
     return list(dict.fromkeys(parts))
 
 
